@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780445389693,
+      "tag": "0000_init-core-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780449872722,
+      "tag": "0001_init-audit-and-events",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780453387233,
+      "tag": "0002_fix-roles-uq",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780514003228,
+      "tag": "0003_init-service-client-secrets",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780514350291,
+      "tag": "0004_session-traceability-columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780550983035,
+      "tag": "0005_rework-company-types",
+      "breakpoints": true
+    }
+  ]
+}

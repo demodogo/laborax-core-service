@@ -1,0 +1,2 @@
+export const JWT_ACCESS_TOKEN = 'JWT_ACCESS_TOKEN';
+export const JWT_REFRESH_TOKEN = 'JWT_REFRESH_TOKEN';

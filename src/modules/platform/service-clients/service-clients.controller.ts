@@ -1,0 +1,96 @@
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AuditAction } from '../audit/decorators/audit-action.decorator';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { CreateServiceClientDto } from './dto/create-service-client.dto';
+import { GetServiceClientsQueryDto } from './dto/get-service-clients-query.dto';
+import { UpdateServiceClientDto } from './dto/update-service-client.dto';
+import { ServiceClientsService } from './service-clients.service';
+
+@Controller('service-clients')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@ApiTags('Service Clients')
+@ApiBearerAuth()
+export class ServiceClientsController {
+  constructor(private readonly serviceClientsService: ServiceClientsService) {}
+
+  @Get()
+  @RequirePermissions('platform.service_clients.read')
+  findAll(@Query() query: GetServiceClientsQueryDto) {
+    return this.serviceClientsService.findAll(query);
+  }
+
+  @Get(':id')
+  @RequirePermissions('platform.service_clients.read')
+  findOne(@Param('id') id: string) {
+    return this.serviceClientsService.findOne(id);
+  }
+
+  @Post()
+  @RequirePermissions('platform.service_clients.create')
+  @AuditAction({ action: 'platform.service_clients.create', resourceType: 'service_client' })
+  create(@Body() dto: CreateServiceClientDto) {
+    return this.serviceClientsService.create(dto);
+  }
+
+  @Patch(':id')
+  @RequirePermissions('platform.service_clients.update')
+  @AuditAction({
+    action: 'platform.service_clients.update',
+    resourceType: 'service_client',
+    resourceIdParam: 'id',
+  })
+  update(@Param('id') id: string, @Body() dto: UpdateServiceClientDto) {
+    return this.serviceClientsService.update(id, dto);
+  }
+
+  @Post(':id/rotate-secret')
+  @RequirePermissions('platform.service_clients.rotate_secret')
+  @ApiOperation({ summary: 'Rota el secreto de un service client y retorna el nuevo valor una sola vez' })
+  @AuditAction({
+    action: 'platform.service_clients.rotate_secret',
+    resourceType: 'service_client',
+    resourceIdParam: 'id',
+  })
+  rotateSecret(@Param('id') id: string) {
+    return this.serviceClientsService.rotateSecret(id);
+  }
+
+  @Post(':id/enable')
+  @RequirePermissions('platform.service_clients.update')
+  @ApiOperation({ summary: 'Reactiva un service client deshabilitado' })
+  @AuditAction({
+    action: 'platform.service_clients.enable',
+    resourceType: 'service_client',
+    resourceIdParam: 'id',
+  })
+  enable(@Param('id') id: string) {
+    return this.serviceClientsService.enable(id);
+  }
+
+  @Post(':id/disable')
+  @RequirePermissions('platform.service_clients.update')
+  @ApiOperation({ summary: 'Deshabilita temporalmente un service client' })
+  @AuditAction({
+    action: 'platform.service_clients.disable',
+    resourceType: 'service_client',
+    resourceIdParam: 'id',
+  })
+  disable(@Param('id') id: string) {
+    return this.serviceClientsService.disable(id);
+  }
+
+  @Post(':id/revoke')
+  @RequirePermissions('platform.service_clients.update')
+  @ApiOperation({ summary: 'Revoca un service client' })
+  @AuditAction({
+    action: 'platform.service_clients.revoke',
+    resourceType: 'service_client',
+    resourceIdParam: 'id',
+  })
+  revoke(@Param('id') id: string) {
+    return this.serviceClientsService.revoke(id);
+  }
+}

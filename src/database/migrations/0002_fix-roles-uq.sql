@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "roles_global_slug_uq" ON "platform"."roles" USING btree ("slug") WHERE "platform"."roles"."tenant_id" is null;

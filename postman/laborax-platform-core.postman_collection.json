@@ -1,0 +1,1325 @@
+{
+  "info": {
+    "_postman_id": "7df07264-80b7-4e4f-9b17-2fcb6a7afed0",
+    "name": "Laborax Platform Core Service",
+    "description": "Coleccion profesional para platform-core-service. Incluye auth, RBAC, tenants, companies, onboarding, outbox, service clients y health checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });",
+          "if (pm.request.body && pm.request.body.mode === 'raw') {",
+          "  pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/health",
+            "description": "Health liviano del servicio."
+          }
+        },
+        {
+          "name": "GET /health/ready",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/health/ready",
+            "description": "Readiness con checks de DB y RabbitMQ cuando el worker esta activo."
+          }
+        },
+        {
+          "name": "GET /auth/health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/auth/health",
+            "description": "Health del modulo auth."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/login - Platform Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login ok', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) { pm.environment.set('accessToken', body.accessToken); }",
+                  "if (body.refreshToken) { pm.environment.set('refreshToken', body.refreshToken); }",
+                  "if (body.user && body.user.id) { pm.environment.set('currentUserId', body.user.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "description": "Autentica admin global y guarda accessToken/refreshToken."
+          }
+        },
+        {
+          "name": "POST /auth/login - Customer Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login customer ok', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) { pm.environment.set('customerAccessToken', body.accessToken); }",
+                  "if (body.refreshToken) { pm.environment.set('customerRefreshToken', body.refreshToken); }",
+                  "if (body.user && body.user.id) { pm.environment.set('customerUserId', body.user.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{customerAdminEmail}}\",\n  \"password\": \"{{customerAdminPassword}}\"\n}"
+            },
+            "description": "Autentica un admin cliente creado por onboarding y guarda tokens separados."
+          }
+        },
+        {
+          "name": "POST /auth/refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) { pm.environment.set('accessToken', body.accessToken); }",
+                  "if (body.refreshToken) { pm.environment.set('refreshToken', body.refreshToken); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "description": "Renueva access/refresh token."
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('logout ok', function () { pm.response.to.have.status(204); });",
+                  "pm.environment.unset('accessToken');",
+                  "pm.environment.unset('refreshToken');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "description": "Revoca la sesion asociada al refresh token. Responde 204 aunque el token ya no sea valido para mantener logout idempotente."
+          }
+        },
+        {
+          "name": "POST /auth/logout-all",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('logout all ok', function () { pm.response.to.have.status(204); });",
+                  "pm.environment.unset('accessToken');",
+                  "pm.environment.unset('refreshToken');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/auth/logout-all",
+            "description": "Revoca todas las sesiones activas del usuario autenticado. Requiere access token vigente."
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/auth/me",
+            "description": "Perfil del usuario autenticado."
+          }
+        },
+        {
+          "name": "GET /auth/me/context",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/auth/me/context",
+            "description": "Contexto RBAC completo para BFF/front: memberships, roles, permissions y accessScope efectivo."
+          }
+        },
+        {
+          "name": "POST /auth/internal/introspect",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/auth/internal/introspect",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{accessToken}}\"\n}"
+            },
+            "description": "Introspeccion interna protegida por service client con scope auth:introspect."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal Customer Onboarding",
+      "item": [
+        {
+          "name": "POST /internal-customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.tenant && body.tenant.id) { pm.environment.set('tenantId', body.tenant.id); }",
+                  "if (body.ownerCompany && body.ownerCompany.id) { pm.environment.set('companyId', body.ownerCompany.id); }",
+                  "if (body.contract && body.contract.id) { pm.environment.set('contractId', body.contract.id); }",
+                  "if (body.adminUser && body.adminUser.id) { pm.environment.set('userId', body.adminUser.id); }",
+                  "if (body.adminUser && body.adminUser.email) { pm.environment.set('customerAdminEmail', body.adminUser.email); }",
+                  "if (body.membership && body.membership.id) { pm.environment.set('membershipId', body.membership.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/internal-customers",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{sampleCustomerName}}\",\n  \"companyRut\": \"{{sampleCompanyRut}}\",\n  \"companyLegalName\": \"{{sampleCompanyLegalName}}\",\n  \"companyTradeName\": \"{{sampleCompanyTradeName}}\",\n  \"contractNumber\": \"{{sampleContractNumber}}\",\n  \"contractStartDate\": \"2026-06-01\",\n  \"contractEndDate\": \"2027-06-01\",\n  \"contractNotes\": \"Onboarding creado desde Postman\",\n  \"adminEmail\": \"{{customerAdminEmail}}\",\n  \"adminFirstName\": \"Customer\",\n  \"adminLastName\": \"Admin\",\n  \"adminPassword\": \"{{customerAdminPassword}}\"\n}"
+            },
+            "description": "Alta profesional de cliente: crea tenant, OWNER company, contrato, admin cliente, membership, rol customer_admin y outbox events."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenants",
+      "item": [
+        {
+          "name": "GET /tenants",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/tenants?search=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "tenants"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista tenants aplicando accessScope efectivo."
+          }
+        },
+        {
+          "name": "GET /tenants/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/tenants/{{tenantId}}",
+            "description": "Obtiene tenant si esta dentro del scope efectivo."
+          }
+        },
+        {
+          "name": "POST /tenants",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('tenantId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/tenants",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tenant Demo Postman\",\n  \"slug\": \"tenant-demo-postman\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "CRUD tecnico de tenant. Para alta real de cliente usar /internal-customers."
+          }
+        },
+        {
+          "name": "PATCH /tenants/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/tenants/{{tenantId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tenant Demo Postman Actualizado\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Actualiza tenant."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "GET /companies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/companies?tenantId={{tenantId}}&search=&type=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ],
+              "query": [
+                {
+                  "key": "tenantId",
+                  "value": "{{tenantId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "CONTRACTOR",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista companies segun scope. Company scope ve su subtree hacia abajo."
+          }
+        },
+        {
+          "name": "GET /companies/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/companies/{{companyId}}",
+            "description": "Obtiene company si pertenece al scope efectivo."
+          }
+        },
+        {
+          "name": "POST /companies - Child",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('childCompanyId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/companies",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"parentCompanyId\": \"{{companyId}}\",\n  \"legalName\": \"Contractor Demo Postman SpA\",\n  \"tradeName\": \"Contractor Demo\",\n  \"rut\": \"{{sampleChildCompanyRut}}\",\n  \"type\": \"CONTRACTOR\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Crea company hija. OWNER solo se crea por onboarding. RUT debe ser chileno valido."
+          }
+        },
+        {
+          "name": "PATCH /companies/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/companies/{{childCompanyId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tradeName\": \"Contractor Demo Actualizada\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Actualiza company."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal References",
+      "item": [
+        {
+          "name": "GET /tenants/internal-reference/:id",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{workforceServiceClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{workforceServiceClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/tenants/internal-reference/{{tenantId}}",
+            "description": "Referencia interna puntual para fallback de workforce o debugging operativo."
+          }
+        },
+        {
+          "name": "GET /tenants/internal-reference",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{workforceServiceClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{workforceServiceClientSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/tenants/internal-reference?offset=0&limit=100",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "tenants",
+                "internal-reference"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "updatedSince",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Superficie interna paginada para reconciliacion de proyecciones."
+          }
+        },
+        {
+          "name": "GET /companies/internal-reference/:id",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{workforceServiceClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{workforceServiceClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/companies/internal-reference/{{companyId}}",
+            "description": "Referencia interna puntual para fallback de workforce o debugging operativo."
+          }
+        },
+        {
+          "name": "GET /companies/internal-reference",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{workforceServiceClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{workforceServiceClientSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/companies/internal-reference?offset=0&limit=100",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "internal-reference"
+              ],
+              "query": [
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "updatedSince",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Superficie interna paginada para reconciliacion de proyecciones."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Contracts",
+      "item": [
+        {
+          "name": "GET /customer-contracts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/customer-contracts?tenantId={{tenantId}}&search=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "customer-contracts"
+              ],
+              "query": [
+                {
+                  "key": "tenantId",
+                  "value": "{{tenantId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista contratos segun tenant scope."
+          }
+        },
+        {
+          "name": "GET /customer-contracts/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/customer-contracts/{{contractId}}"
+          }
+        },
+        {
+          "name": "POST /customer-contracts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('contractId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/customer-contracts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"contractNumber\": \"CTR-POSTMAN-001\",\n  \"status\": \"ACTIVE\",\n  \"startDate\": \"2026-06-01\",\n  \"endDate\": \"2027-06-01\",\n  \"notes\": \"Contrato creado desde Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /customer-contracts/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/customer-contracts/{{contractId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\",\n  \"notes\": \"Contrato actualizado desde Postman\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/users?search=&email=&type=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "email",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "CUSTOMER",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVATED",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista usuarios aplicando scope efectivo por memberships."
+          }
+        },
+        {
+          "name": "GET /users/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "GET /users/:id/context",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/users/{{userId}}/context"
+          }
+        },
+        {
+          "name": "POST /users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('userId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CUSTOMER\",\n  \"email\": \"postman-user@laborax.local\",\n  \"password\": \"Admin12345\",\n  \"firstName\": \"Postman\",\n  \"lastName\": \"User\",\n  \"status\": \"ACTIVATED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /users/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Postman Updated\",\n  \"status\": \"ACTIVATED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /users/:id/credentials",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/users/{{userId}}/credentials",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Admin12345\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - Permissions",
+      "item": [
+        {
+          "name": "GET /permissions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/permissions?search=&category=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "permissions"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "PLATFORM",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /permissions/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/permissions/{{permissionId}}"
+          }
+        },
+        {
+          "name": "POST /permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('permissionId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/permissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"platform.demo.read\",\n  \"displayName\": \"Ver demo\",\n  \"category\": \"PLATFORM\",\n  \"description\": \"Permiso demo creado desde Postman\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /permissions/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/permissions/{{permissionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Ver demo actualizado\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - Roles",
+      "item": [
+        {
+          "name": "GET /roles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/roles?search=&scope=&tenantId=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "scope",
+                  "value": "TENANT",
+                  "disabled": true
+                },
+                {
+                  "key": "tenantId",
+                  "value": "{{tenantId}}",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /roles/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/roles/{{roleId}}"
+          }
+        },
+        {
+          "name": "POST /roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('roleId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"tenant_viewer_postman\",\n  \"displayName\": \"Tenant Viewer Postman\",\n  \"description\": \"Rol tenant demo\",\n  \"scope\": \"TENANT\",\n  \"tenantId\": \"{{tenantId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /roles/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/roles/{{roleId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Tenant Viewer Postman Actualizado\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /roles/:id/permissions",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/roles/{{roleId}}/permissions"
+          }
+        },
+        {
+          "name": "POST /roles/:id/permissions",
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/roles/{{roleId}}/permissions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissionId\": \"{{permissionId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /roles/:id/permissions/:permissionId",
+          "request": {
+            "method": "DELETE",
+            "url": "{{platformCoreBaseUrl}}/roles/{{roleId}}/permissions/{{permissionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC - Memberships",
+      "item": [
+        {
+          "name": "GET /memberships",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/memberships?userId=&tenantId=&companyId=&scope=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "memberships"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "tenantId",
+                  "value": "{{tenantId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "scope",
+                  "value": "TENANT",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /memberships/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/memberships/{{membershipId}}"
+          }
+        },
+        {
+          "name": "POST /memberships",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('membershipId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/memberships",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"tenantId\": \"{{tenantId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"scope\": \"TENANT\",\n  \"status\": \"ACTIVE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /memberships/:id/roles",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/memberships/{{membershipId}}/roles"
+          }
+        },
+        {
+          "name": "POST /memberships/:id/roles",
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/memberships/{{membershipId}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": \"{{roleId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /memberships/:id/roles/:roleId",
+          "request": {
+            "method": "DELETE",
+            "url": "{{platformCoreBaseUrl}}/memberships/{{membershipId}}/roles/{{roleId}}"
+          }
+        },
+        {
+          "name": "GET /memberships/:id/permissions/effective",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/memberships/{{membershipId}}/permissions/effective"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Service Clients",
+      "item": [
+        {
+          "name": "GET /service-clients",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/service-clients?search=&status=",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "service-clients"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /service-clients/:id",
+          "request": {
+            "method": "GET",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}"
+          }
+        },
+        {
+          "name": "POST /service-clients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.environment.set('serviceClientId', body.id); }",
+                  "if (body.clientId) { pm.environment.set('createdServiceClientId', body.clientId); }",
+                  "if (body.clientSecret) { pm.environment.set('createdServiceClientSecret', body.clientSecret); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/service-clients",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"postman-client-local\",\n  \"name\": \"postman-client\",\n  \"clientSecret\": \"postman-client-secret-1234567890\",\n  \"allowedScopes\": [\"auth:introspect\", \"outbox:read\"],\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "description": "Crea service client. El secreto solo se devuelve al crear/rotar."
+          }
+        },
+        {
+          "name": "PATCH /service-clients/:id",
+          "request": {
+            "method": "PATCH",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"postman-client-updated\",\n  \"allowedScopes\": [\"auth:introspect\", \"outbox:read\", \"outbox:dispatch\"],\n  \"status\": \"ACTIVE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /service-clients/:id/rotate-secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.clientSecret) { pm.environment.set('createdServiceClientSecret', body.clientSecret); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}/rotate-secret",
+            "description": "Rota el secreto del service client. El nuevo secreto se devuelve una sola vez y el anterior queda activo solo durante la ventana de gracia configurada."
+          }
+        },
+        {
+          "name": "POST /service-clients/:id/disable",
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}/disable",
+            "description": "Desactiva temporalmente un service client sin borrar su registro."
+          }
+        },
+        {
+          "name": "POST /service-clients/:id/enable",
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}/enable",
+            "description": "Reactiva un service client deshabilitado."
+          }
+        },
+        {
+          "name": "POST /service-clients/:id/revoke",
+          "request": {
+            "method": "POST",
+            "url": "{{platformCoreBaseUrl}}/service-clients/{{serviceClientId}}/revoke",
+            "description": "Revoca un service client. Operacion administrativa para cortar uso interno."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Outbox Internal",
+      "item": [
+        {
+          "name": "GET /outbox/internal/events",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/outbox/internal/events?status=&eventType=&limit=25",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "outbox",
+                "internal",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                },
+                {
+                  "key": "eventType",
+                  "value": "tenant.created",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Lista outbox events. Requiere service client con outbox:read."
+          }
+        },
+        {
+          "name": "GET /outbox/internal/stats",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/outbox/internal/stats"
+          }
+        },
+        {
+          "name": "POST /outbox/internal/dispatch-once",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/outbox/internal/dispatch-once",
+            "description": "Despacha una pasada de outbox hacia RabbitMQ. Requiere outbox:dispatch."
+          }
+        },
+        {
+          "name": "POST /outbox/internal/requeue-failed",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": "{{platformCoreBaseUrl}}/outbox/internal/requeue-failed"
+          }
+        },
+        {
+          "name": "POST /outbox/internal/recover-processing",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-client-id",
+                "value": "{{internalClientId}}"
+              },
+              {
+                "key": "x-client-secret",
+                "value": "{{internalClientSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{platformCoreBaseUrl}}/outbox/internal/recover-processing?olderThanSeconds=300",
+              "host": [
+                "{{platformCoreBaseUrl}}"
+              ],
+              "path": [
+                "outbox",
+                "internal",
+                "recover-processing"
+              ],
+              "query": [
+                {
+                  "key": "olderThanSeconds",
+                  "value": "300"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
