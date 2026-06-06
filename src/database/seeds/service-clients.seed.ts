@@ -23,27 +23,15 @@ const serviceClientDefinitions = [
     ],
   },
   {
-    clientIdEnv: 'SEED_WORKFORCE_REGISTRY_CLIENT_ID',
-    clientSecretEnv: 'SEED_WORKFORCE_REGISTRY_CLIENT_SECRET',
-    name: 'workforce-registry-service',
+    clientIdEnv: 'SEED_WORKFORCE_SERVICE_CLIENT_ID',
+    clientSecretEnv: 'SEED_WORKFORCE_SERVICE_CLIENT_SECRET',
+    name: 'workforce-service',
     allowedScopes: ['auth:introspect', 'platform:read'],
   },
   {
     clientIdEnv: 'SEED_ACCESS_CONTROL_CLIENT_ID',
     clientSecretEnv: 'SEED_ACCESS_CONTROL_CLIENT_SECRET',
     name: 'access-control-service',
-    allowedScopes: ['auth:introspect', 'platform:read'],
-  },
-  {
-    clientIdEnv: 'SEED_WORKFORCE_CONTRACTS_CLIENT_ID',
-    clientSecretEnv: 'SEED_WORKFORCE_CONTRACTS_CLIENT_SECRET',
-    name: 'workforce-contracts-service',
-    allowedScopes: ['auth:introspect', 'platform:read'],
-  },
-  {
-    clientIdEnv: 'SEED_ACCREDITATION_CLIENT_ID',
-    clientSecretEnv: 'SEED_ACCREDITATION_CLIENT_SECRET',
-    name: 'accreditation-service',
     allowedScopes: ['auth:introspect', 'platform:read'],
   },
 ] as const;

@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "7df07264-80b7-4e4f-9b17-2fcb6a7afed0",
-    "name": "Laborax Platform Core Service",
-    "description": "Coleccion profesional para platform-core-service. Incluye auth, RBAC, tenants, companies, onboarding, outbox, service clients y health checks.",
+    "name": "Laborax Core Service",
+    "description": "Coleccion operativa para core-service. Incluye auth, RBAC, tenants, companies, internal-customers, outbox, service clients y health checks.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
