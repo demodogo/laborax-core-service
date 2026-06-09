@@ -39,7 +39,7 @@ const serviceClientDefinitions = [
 export async function seedServiceClients({ db }: SeedContext) {
   const results: Array<{
     clientId: string;
-    action: 'created' | 'skipped_existing';
+    action: 'created' | 'skipped_existing' | 'rotated_secret';
   }> = [];
 
   for (const definition of serviceClientDefinitions) {
@@ -65,12 +65,18 @@ export async function seedServiceClients({ db }: SeedContext) {
         })
         .where(eq(serviceClients.id, existingClient.id));
 
-      const [existingSecret] = await db
-        .select({ id: serviceClientSecrets.id })
+      const existingSecrets = await db
+        .select({
+          id: serviceClientSecrets.id,
+          secretHash: serviceClientSecrets.secretHash,
+          version: serviceClientSecrets.version,
+        })
         .from(serviceClientSecrets)
         .where(eq(serviceClientSecrets.serviceClientId, existingClient.id))
         .orderBy(desc(serviceClientSecrets.version))
-        .limit(1);
+        .limit(20);
+
+      const [existingSecret] = existingSecrets;
 
       if (!existingSecret) {
         await db.insert(serviceClientSecrets).values({
@@ -79,6 +85,38 @@ export async function seedServiceClients({ db }: SeedContext) {
           version: 1,
           isPrimary: true,
         });
+      }
+
+      const hasMatchingSecret = await Promise.all(
+        existingSecrets.map((secret) =>
+          bcrypt.compare(clientSecret, secret.secretHash),
+        ),
+      ).then((matches) => matches.some(Boolean));
+
+      if (!hasMatchingSecret) {
+        const now = new Date();
+
+        await db
+          .update(serviceClientSecrets)
+          .set({
+            isPrimary: false,
+            validUntil: now,
+            revokedAt: now,
+          })
+          .where(eq(serviceClientSecrets.serviceClientId, existingClient.id));
+
+        await db.insert(serviceClientSecrets).values({
+          serviceClientId: existingClient.id,
+          secretHash: await bcrypt.hash(clientSecret, 10),
+          version: existingSecret.version + 1,
+          isPrimary: true,
+        });
+
+        results.push({
+          clientId,
+          action: 'rotated_secret',
+        });
+        continue;
       }
 
       results.push({
