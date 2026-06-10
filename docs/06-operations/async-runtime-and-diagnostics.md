@@ -1,41 +1,47 @@
-# Async Runtime And Diagnostics
+# Async Runtime and Diagnostics
 
-## Runtime Minimo
+## Processes
 
-Para desarrollo y smoke real de `core-service`:
+### API
 
-- `core-service api`
-- `core-service jobs`
-- PostgreSQL
-- RabbitMQ
+Responsibilities:
 
-## Process Split
+- receive requests
+- validate auth and scope
+- persist domain changes
+- write outbox rows
 
-- `api`: expone HTTP, auth, RBAC y APIs de negocio
-- `jobs`: publica outbox y alojara procesos internos auxiliares del core
+### Jobs
 
-## Variables Criticas
+Responsibilities:
 
-- `OUTBOX_PUBLISHER_ENABLED`
-- `RABBITMQ_URL`
-- `RABBITMQ_EXCHANGE`
-- `SEED_INTERNAL_JOBS_CLIENT_ID`
-- `SEED_INTERNAL_JOBS_CLIENT_SECRET`
-- `SEED_WORKFORCE_SERVICE_CLIENT_ID`
-- `SEED_WORKFORCE_SERVICE_CLIENT_SECRET`
+- publish pending outbox events
+- retry failed publications
+- recover stuck processing rows
 
-## Checklist Basico
+## Startup checks
 
-1. `GET /health` responde `ok`
-2. `GET /health/ready` responde `ready`
-3. `POST /auth/login` funciona
-4. `POST /internal-customers` crea tenant, owner company y contrato comercial
-5. `platform.outbox_events` pasa de `PENDING` a `PROCESSED`
+At boot, the service should make visible:
 
-## Diagnostico Rapido
+- database connectivity
+- RabbitMQ connectivity when publisher is enabled
+- outbox publisher enabled or disabled
 
-- Si la API funciona pero el outbox queda en `PENDING`, el proceso `jobs` no
-  esta corriendo o `OUTBOX_PUBLISHER_ENABLED=false`.
-- Si `jobs` corre pero no publica, revisar conectividad a RabbitMQ y exchange.
-- Si falla introspeccion interna de otros servicios, revisar `service clients`
-  y sus scopes en core.
+## Diagnostic sequence
+
+When an integration issue is reported:
+
+1. verify the business row exists in source tables
+2. verify the outbox row exists
+3. verify the outbox status
+4. verify the jobs process is running
+5. verify RabbitMQ exchange/bindings
+6. verify downstream consumer behavior
+
+## Internal operational endpoints
+
+- `GET /outbox/internal/events`
+- `GET /outbox/internal/stats`
+- `POST /outbox/internal/dispatch-once`
+- `POST /outbox/internal/requeue-failed`
+- `POST /outbox/internal/recover-processing`

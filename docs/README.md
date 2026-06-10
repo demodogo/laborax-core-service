@@ -1,30 +1,21 @@
 # Core Docs
 
-## Proposito
+Technical documentation for the current `core-service` runtime.
 
-Este folder contiene solo documentacion vigente de `core-service`.
+## Covered topics
 
-## Estado
+- service scope
+- runtime and async operation
+- temporal conventions
+- integration contracts consumed by downstream services
 
-`core-service` es el servicio canonico de:
-
-- identidad humana
-- autenticacion M2M por `service clients`
-- RBAC y scope efectivo
-- tenants
-- companies
-- customer contracts
-- users y memberships
-- auditoria transversal
-- outbox de plataforma
-
-## Documentos Activos
+## Active documents
 
 - [temporal-conventions.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/temporal-conventions.md)
 - [06-operations/async-runtime-and-diagnostics.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/06-operations/async-runtime-and-diagnostics.md)
 
-## Regla
+## Documentation rule
 
-Si una decision de runtime, Postman o configuracion no aparece aqui o en el
-`README` raiz del repo, la referencia correcta es el codigo actual del servicio,
-no material heredado de repositorios anteriores.
+This folder documents the current repository only. If a document conflicts with
+the current code, migrations, or environment contract, the current repository
+state is authoritative.

@@ -1,109 +1,87 @@
 # core-service
 
-Servicio base del ecosistema Laborax. Este repo nuevo reemplaza el runtime
-anterior fragmentado y concentra el core en dos entrypoints:
+Canonical platform service for Laborax.
 
-- `api`: HTTP, auth, RBAC, tenants, companies, contracts comerciales y auditoria
-- `jobs`: publicacion de outbox y futuros procesos internos del core
+## Responsibilities
 
-## Alcance
+`core-service` owns:
 
-Este servicio es responsable de:
-
-- identidad y autenticacion humana
-- autenticacion M2M mediante service clients
-- RBAC y scope efectivo
+- human authentication
+- service-to-service authentication
+- roles and permissions
+- effective scope resolution
 - tenants
 - companies
 - customer contracts
-- users
-- memberships
-- auditoria transversal
-- escritura de eventos en `platform.outbox_events`
+- users and memberships
+- platform audit
+- platform outbox publication
 
-## Arquitectura Operativa
+## Runtime model
 
-El repo ya no depende de un publisher separado. El mismo servicio expone dos
-procesos:
+This repository exposes two entrypoints:
 
-- `npm run start:api`
-- `npm run start:jobs`
+- `api`
+- `jobs`
 
-El proceso `api` no publica eventos.
-El proceso `jobs` ejecuta el publisher de outbox cuando
-`OUTBOX_PUBLISHER_ENABLED=true`.
+The API process handles HTTP traffic and writes outbox records.
+The jobs process publishes pending outbox events and runs background operations.
 
-## Variables Relevantes
-
-- `DATABASE_URL`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `SWAGGER_ENABLED`
-- `OUTBOX_PUBLISHER_ENABLED`
-- `RABBITMQ_URL`
-- `RABBITMQ_EXCHANGE`
-- `SEED_INTERNAL_JOBS_CLIENT_ID`
-- `SEED_INTERNAL_JOBS_CLIENT_SECRET`
-- `SEED_WORKFORCE_SERVICE_CLIENT_ID`
-- `SEED_WORKFORCE_SERVICE_CLIENT_SECRET`
-- `SEED_ACCESS_CONTROL_CLIENT_ID`
-- `SEED_ACCESS_CONTROL_CLIENT_SECRET`
-
-## Comandos
+## Commands
 
 ```bash
 npm run build
 npm run start:api
 npm run start:jobs
+npm run start:all:dev
 ```
 
-Para desarrollo:
+## Main API areas
 
-```bash
-npm run start:api:dev
-npm run start:jobs:dev
-```
+- `auth`
+- `internal-customers`
+- `tenants`
+- `companies`
+- `customer-contracts`
+- `users`
+- `memberships`
+- `roles`
+- `permissions`
+- `service-clients`
+- `outbox/internal`
+- `health`
 
-## Referencias Internas Para Proyecciones
+## Internal integration surfaces
 
-El servicio expone superficies internas para consumidores y reconciliadores:
+Protected internal endpoints used by downstream services:
 
+- `POST /auth/internal/introspect`
 - `GET /tenants/internal-reference/:id`
 - `GET /tenants/internal-reference`
 - `GET /companies/internal-reference/:id`
 - `GET /companies/internal-reference`
 
-Estas superficies estan protegidas por `service clients`.
+## Important environment variables
+
+- `DATABASE_URL`
+- `PORT`
+- `SWAGGER_ENABLED`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `OUTBOX_PUBLISHER_ENABLED`
+- `RABBITMQ_URL`
+- `RABBITMQ_EXCHANGE`
+
+Service-client seeds used by downstream services are also configured here.
+
+## Local documentation
+
+- [docs/README.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/README.md)
+- [docs/temporal-conventions.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/temporal-conventions.md)
+- [docs/06-operations/async-runtime-and-diagnostics.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/06-operations/async-runtime-and-diagnostics.md)
 
 ## Swagger
 
-Con `SWAGGER_ENABLED=true`, la documentacion interactiva queda disponible en:
+When `SWAGGER_ENABLED=true`:
 
 - `http://localhost:3000/docs`
-
-## Fechas y Timestamps
-
-La convencion temporal del ecosistema queda documentada en:
-
-- [temporal-conventions.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/temporal-conventions.md)
-
-Resumen operativo:
-
-- `timestamp with time zone` para instantes tecnicos, serializados en ISO 8601 UTC
-- `date` para fechas de negocio, serializadas como `YYYY-MM-DD`
-- la conversion horaria visible al usuario corresponde al frontend/BFF
-
-## Runtime Minimo
-
-Para operar el core limpio de esta nueva etapa:
-
-- `core-service api`
-- `core-service jobs`
-- RabbitMQ
-- PostgreSQL
-
-## Diagnostico
-
-La guia operativa y de diagnostico vive en:
-
-- [async-runtime-and-diagnostics.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/06-operations/async-runtime-and-diagnostics.md)
