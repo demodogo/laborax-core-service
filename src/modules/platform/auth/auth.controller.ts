@@ -21,6 +21,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import type { AuthUserContext } from './types/auth-user-context.type';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { IntrospectTokenDto } from './dto/introspect-token.dto';
+import { VerifyServiceClientDto } from './dto/verify-service-client.dto';
 import { InternalServiceClientGuard } from './guards/internal-service-client.guard';
 import { CurrentServiceClient } from './decorators/current-service-client.decorator';
 import { RequireServiceScopes } from './decorators/require-service-scopes.decorator';
@@ -116,6 +117,14 @@ export class AuthController {
     @CurrentServiceClient() serviceClient: ServiceClientContext,
   ) {
     return this.authService.introspect(dto, serviceClient);
+  }
+
+  @Post('internal/service-clients/verify')
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
+  @UseGuards(InternalServiceClientGuard)
+  @RequireServiceScopes('auth:introspect')
+  verifyServiceClient(@Body() dto: VerifyServiceClientDto) {
+    return this.authService.verifyServiceClient(dto);
   }
 
   private getHeaderValue(value?: string | string[]) {

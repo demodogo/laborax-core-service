@@ -1,21 +1,21 @@
-# Core Docs
+# Documentación de Core
 
-Technical documentation for the current `core-service` runtime.
+Documentación técnica del runtime actual de `core-service`.
 
-## Covered topics
+## Temas cubiertos
 
-- service scope
-- runtime and async operation
-- temporal conventions
-- integration contracts consumed by downstream services
+- alcance del servicio
+- runtime y operación async
+- convenciones temporales
+- contratos de integración consumidos por servicios downstream
 
-## Active documents
+## Documentos activos
 
 - [temporal-conventions.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/temporal-conventions.md)
 - [06-operations/async-runtime-and-diagnostics.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/06-operations/async-runtime-and-diagnostics.md)
 
-## Documentation rule
+## Regla documental
 
-This folder documents the current repository only. If a document conflicts with
-the current code, migrations, or environment contract, the current repository
-state is authoritative.
+Este directorio documenta únicamente el repositorio actual. Si un documento
+contradice el código, las migraciones o el contrato de entorno actual, el estado
+actual del repositorio es la referencia autoritativa.

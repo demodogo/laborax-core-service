@@ -32,7 +32,11 @@ const serviceClientDefinitions = [
     clientIdEnv: 'SEED_ACCESS_CONTROL_CLIENT_ID',
     clientSecretEnv: 'SEED_ACCESS_CONTROL_CLIENT_SECRET',
     name: 'access-control-service',
-    allowedScopes: ['auth:introspect', 'platform:read'],
+    allowedScopes: [
+      'auth:introspect',
+      'platform:read',
+      'workforce:internal_reference.read',
+    ],
   },
 ] as const;
 

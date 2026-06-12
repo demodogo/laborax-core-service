@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
+import { AccessScopeService } from '../auth/services/access-scope.service';
+import type { AuthUserContext } from '../auth/types/auth-user-context.type';
 import { OutboxService } from '../outbox/outbox.service';
 import { PasswordService } from '../auth/services/password.service';
 import { CreateServiceClientDto } from './dto/create-service-client.dto';
@@ -15,17 +17,21 @@ export class ServiceClientsService {
     private readonly passwordService: PasswordService,
     private readonly outboxService: OutboxService,
     private readonly configService: ConfigService,
+    private readonly accessScopeService: AccessScopeService,
   ) {}
 
-  findAll(query: GetServiceClientsQueryDto) {
+  async findAll(user: AuthUserContext, query: GetServiceClientsQueryDto) {
+    await this.assertGlobalScope(user);
     return this.serviceClientsRepository.findAll(query);
   }
 
-  findOne(id: string) {
+  async findOne(user: AuthUserContext, id: string) {
+    await this.assertGlobalScope(user);
     return this.serviceClientsRepository.findOne(id);
   }
 
-  async create(dto: CreateServiceClientDto) {
+  async create(user: AuthUserContext, dto: CreateServiceClientDto) {
+    await this.assertGlobalScope(user);
     const clientSecret = dto.clientSecret ?? this.generateClientSecret();
     const clientSecretHash = await this.passwordService.hash(clientSecret);
     const serviceClient = await this.serviceClientsRepository.create(dto, clientSecretHash);
@@ -43,7 +49,8 @@ export class ServiceClientsService {
     };
   }
 
-  async update(id: string, dto: UpdateServiceClientDto) {
+  async update(user: AuthUserContext, id: string, dto: UpdateServiceClientDto) {
+    await this.assertGlobalScope(user);
     const serviceClient = await this.serviceClientsRepository.update(id, dto);
 
     await this.outboxService.publish({
@@ -56,19 +63,20 @@ export class ServiceClientsService {
     return serviceClient;
   }
 
-  enable(id: string) {
-    return this.update(id, { status: 'ACTIVE' });
+  enable(user: AuthUserContext, id: string) {
+    return this.update(user, id, { status: 'ACTIVE' });
   }
 
-  disable(id: string) {
-    return this.update(id, { status: 'DISABLED' });
+  disable(user: AuthUserContext, id: string) {
+    return this.update(user, id, { status: 'DISABLED' });
   }
 
-  revoke(id: string) {
-    return this.update(id, { status: 'REVOKED' });
+  revoke(user: AuthUserContext, id: string) {
+    return this.update(user, id, { status: 'REVOKED' });
   }
 
-  async rotateSecret(id: string) {
+  async rotateSecret(user: AuthUserContext, id: string) {
+    await this.assertGlobalScope(user);
     const clientSecret = this.generateClientSecret();
     const secretHash = await this.passwordService.hash(clientSecret);
     const serviceClient = await this.serviceClientsRepository.rotateSecret(
@@ -92,5 +100,12 @@ export class ServiceClientsService {
 
   private generateClientSecret() {
     return `lxs_${randomBytes(32).toString('base64url')}`;
+  }
+
+  private async assertGlobalScope(user: AuthUserContext) {
+    const scope = await this.accessScopeService.resolve(user);
+    if (!scope.isGlobal) {
+      throw new ForbiddenException('Service client administration requires global scope');
+    }
   }
 }

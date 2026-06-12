@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { OutboxService } from '../outbox/outbox.service';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
@@ -34,7 +34,12 @@ export class TenantsService {
     return this.tenantsRepository.findAllInternal(query);
   }
 
-  async create(dto: CreateTenantDto) {
+  async create(user: AuthUserContext, dto: CreateTenantDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    if (!scope.isGlobal) {
+      throw new ForbiddenException('Tenant creation requires global scope');
+    }
+
     const tenant = await this.tenantsRepository.create(dto);
 
     await this.outboxService.publish({
@@ -47,7 +52,9 @@ export class TenantsService {
     return tenant;
   }
 
-  async update(id: string, dto: UpdateTenantDto) {
+  async update(user: AuthUserContext, id: string, dto: UpdateTenantDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.tenantsRepository.findOne(id, scope);
     const tenant = await this.tenantsRepository.update(id, dto);
 
     await this.outboxService.publish({

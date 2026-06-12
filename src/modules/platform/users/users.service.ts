@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { OutboxService } from '../outbox/outbox.service';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
@@ -28,7 +28,12 @@ export class UsersService {
     return this.usersRepository.findOne(id, scope);
   }
 
-  async create(dto: CreateUserDto) {
+  async create(currentUser: AuthUserContext, dto: CreateUserDto) {
+    const scope = await this.accessScopeService.resolve(currentUser);
+    if (!scope.isGlobal) {
+      throw new ForbiddenException('User creation requires global scope');
+    }
+
     const passwordHash = await this.passwordService.hash(dto.password);
     const user = await this.usersRepository.create(dto, passwordHash);
 
@@ -42,7 +47,9 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(currentUser: AuthUserContext, id: string, dto: UpdateUserDto) {
+    const scope = await this.accessScopeService.resolve(currentUser);
+    await this.usersRepository.findOne(id, scope);
     const user = await this.usersRepository.update(id, dto);
 
     await this.outboxService.publish({
@@ -55,7 +62,13 @@ export class UsersService {
     return user;
   }
 
-  async updateCredentials(id: string, dto: UpdateUserCredentialsDto) {
+  async updateCredentials(
+    currentUser: AuthUserContext,
+    id: string,
+    dto: UpdateUserCredentialsDto,
+  ) {
+    const scope = await this.accessScopeService.resolve(currentUser);
+    await this.usersRepository.findOne(id, scope);
     const passwordHash = await this.passwordService.hash(dto.password);
     const user = await this.usersRepository.updateCredentials(id, dto, passwordHash);
 

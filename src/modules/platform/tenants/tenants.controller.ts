@@ -61,8 +61,8 @@ export class TenantsController {
   @RequirePermissions('platform.tenants.create')
   @ApiOperation({ summary: 'Crea un tenant tecnico de plataforma' })
   @AuditAction({ action: 'platform.tenants.create', resourceType: 'tenant' })
-  create(@Body() dto: CreateTenantDto) {
-    return this.tenantsService.create(dto);
+  create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateTenantDto) {
+    return this.tenantsService.create(user, dto);
   }
 
   @Patch(':id')
@@ -74,7 +74,11 @@ export class TenantsController {
     resourceType: 'tenant',
     resourceIdParam: 'id',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
-    return this.tenantsService.update(id, dto);
+  update(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateTenantDto,
+  ) {
+    return this.tenantsService.update(user, id, dto);
   }
 }

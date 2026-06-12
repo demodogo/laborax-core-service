@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { AccessScopeService } from '../auth/services/access-scope.service';
+import type { AuthUserContext } from '../auth/types/auth-user-context.type';
 import { OutboxService } from '../outbox/outbox.service';
 import { AssignRolePermissionDto } from './dto/assign-role-permission.dto';
 import { CreateRoleDto } from './dto/create-role.dto';
@@ -11,17 +13,22 @@ export class RolesService {
   constructor(
     private readonly rolesRepository: RolesRepository,
     private readonly outboxService: OutboxService,
+    private readonly accessScopeService: AccessScopeService,
   ) {}
 
-  findAll(query: GetRolesQueryDto) {
-    return this.rolesRepository.findAll(query);
+  async findAll(user: AuthUserContext, query: GetRolesQueryDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    return this.rolesRepository.findAll(query, scope);
   }
 
-  findOne(id: string) {
-    return this.rolesRepository.findOne(id);
+  async findOne(user: AuthUserContext, id: string) {
+    const scope = await this.accessScopeService.resolve(user);
+    return this.rolesRepository.findOne(id, scope);
   }
 
-  async create(dto: CreateRoleDto) {
+  async create(user: AuthUserContext, dto: CreateRoleDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    this.assertRoleTargetScope(scope, dto.scope, dto.tenantId ?? null);
     const role = await this.rolesRepository.create(dto);
 
     await this.outboxService.publish({
@@ -34,7 +41,10 @@ export class RolesService {
     return role;
   }
 
-  async update(id: string, dto: UpdateRoleDto) {
+  async update(user: AuthUserContext, id: string, dto: UpdateRoleDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    const currentRole = await this.rolesRepository.findOne(id, scope);
+    this.assertRoleTargetScope(scope, dto.scope ?? currentRole.scope, dto.tenantId ?? currentRole.tenantId);
     const role = await this.rolesRepository.update(id, dto);
 
     await this.outboxService.publish({
@@ -47,11 +57,15 @@ export class RolesService {
     return role;
   }
 
-  listPermissions(id: string) {
+  async listPermissions(user: AuthUserContext, id: string) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.rolesRepository.findOne(id, scope);
     return this.rolesRepository.listPermissions(id);
   }
 
-  async assignPermission(id: string, dto: AssignRolePermissionDto) {
+  async assignPermission(user: AuthUserContext, id: string, dto: AssignRolePermissionDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.rolesRepository.findOne(id, scope);
     const assignment = await this.rolesRepository.assignPermission(id, dto);
 
     await this.outboxService.publish({
@@ -68,7 +82,9 @@ export class RolesService {
     return assignment;
   }
 
-  async removePermission(id: string, permissionId: string) {
+  async removePermission(user: AuthUserContext, id: string, permissionId: string) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.rolesRepository.findOne(id, scope);
     const result = await this.rolesRepository.removePermission(id, permissionId);
 
     await this.outboxService.publish({
@@ -83,5 +99,26 @@ export class RolesService {
     });
 
     return result;
+  }
+
+  private assertRoleTargetScope(
+    scope: Awaited<ReturnType<AccessScopeService['resolve']>>,
+    roleScope: string,
+    tenantId: string | null,
+  ) {
+    if (roleScope === 'GLOBAL') {
+      if (!scope.isGlobal) {
+        throw new ForbiddenException('Global roles require global scope');
+      }
+      return;
+    }
+
+    if (!tenantId) {
+      throw new ForbiddenException('Scoped role requires tenantId');
+    }
+
+    if (!scope.isGlobal && !this.accessScopeService.canAccessTenant(scope, tenantId)) {
+      throw new ForbiddenException('Role target is outside of effective scope');
+    }
   }
 }

@@ -1,8 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SERVICE_NAME } from '../../../common/constants/service.constants';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { IntrospectTokenDto } from './dto/introspect-token.dto';
+import { VerifyServiceClientDto } from './dto/verify-service-client.dto';
 import { AuthRepository } from './repositories/auth.repository';
 import { PasswordService } from './services/password.service';
 import { TokenService } from './services/token.service';
@@ -341,9 +346,15 @@ export class AuthService {
   }
 
   async introspect(dto: IntrospectTokenDto, serviceClient: ServiceClientContext) {
-    const payload = await this.jwtService.verifyAsync<AuthUserContext>(dto.token, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-    });
+    let payload: AuthUserContext;
+
+    try {
+      payload = await this.jwtService.verifyAsync<AuthUserContext>(dto.token, {
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid access token');
+    }
 
     const user = await this.authRepository.findUserById(payload.sub);
 
@@ -371,6 +382,57 @@ export class AuthService {
       permissions: context.permissions,
       memberships: context.memberships,
       accessScope,
+    };
+  }
+
+  async verifyServiceClient(dto: VerifyServiceClientDto) {
+    const serviceClient = await this.authRepository.findServiceClientByClientId(dto.clientId);
+
+    if (!serviceClient || serviceClient.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Invalid internal service client');
+    }
+
+    const activeSecrets = await this.authRepository.findActiveSecretsForServiceClient(
+      serviceClient.id,
+    );
+
+    let matchedSecretId: string | null = null;
+    for (const activeSecret of activeSecrets) {
+      const isValidSecret = await this.passwordService.compare(
+        dto.clientSecret,
+        activeSecret.secretHash,
+      );
+
+      if (isValidSecret) {
+        matchedSecretId = activeSecret.id;
+        break;
+      }
+    }
+
+    if (!matchedSecretId) {
+      throw new UnauthorizedException('Invalid internal service secret');
+    }
+
+    const requiredScopes = dto.requiredScopes ?? [];
+    const hasAllScopes = requiredScopes.every((scope) =>
+      serviceClient.allowedScopes.includes(scope),
+    );
+
+    if (!hasAllScopes) {
+      throw new ForbiddenException('Internal service client lacks required scopes');
+    }
+
+    await this.authRepository.touchServiceClientLastUsedAt(serviceClient.id);
+    await this.authRepository.touchServiceClientSecretLastUsedAt(matchedSecretId);
+
+    return {
+      active: true,
+      serviceClient: {
+        id: serviceClient.id,
+        clientId: serviceClient.clientId,
+        allowedScopes: serviceClient.allowedScopes,
+        status: serviceClient.status,
+      },
     };
   }
 

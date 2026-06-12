@@ -39,8 +39,8 @@ export class CustomerContractsController {
     action: 'platform.customer_contracts.create',
     resourceType: 'customer_contract',
   })
-  create(@Body() dto: CreateCustomerContractDto) {
-    return this.customerContractsService.create(dto);
+  create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateCustomerContractDto) {
+    return this.customerContractsService.create(user, dto);
   }
 
   @Patch(':id')
@@ -51,7 +51,11 @@ export class CustomerContractsController {
     resourceType: 'customer_contract',
     resourceIdParam: 'id',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateCustomerContractDto) {
-    return this.customerContractsService.update(id, dto);
+  update(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomerContractDto,
+  ) {
+    return this.customerContractsService.update(user, id, dto);
   }
 }

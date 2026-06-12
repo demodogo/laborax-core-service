@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
 import { OutboxService } from '../outbox/outbox.service';
@@ -34,7 +34,16 @@ export class CompaniesService {
     return this.companiesRepository.findAllInternal(query);
   }
 
-  async create(dto: CreateCompanyDto) {
+  async create(user: AuthUserContext, dto: CreateCompanyDto) {
+    const scope = await this.accessScopeService.resolve(user);
+
+    if (dto.parentCompanyId) {
+      const parentCompany = await this.companiesRepository.findOne(dto.parentCompanyId, scope);
+      if (parentCompany.tenantId !== dto.tenantId) {
+        throw new BadRequestException('Parent company must belong to the same tenant');
+      }
+    }
+
     const company = await this.companiesRepository.create(dto);
 
     await this.outboxService.publish({
@@ -47,7 +56,9 @@ export class CompaniesService {
     return company;
   }
 
-  async update(id: string, dto: UpdateCompanyDto) {
+  async update(user: AuthUserContext, id: string, dto: UpdateCompanyDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.companiesRepository.findOne(id, scope);
     const company = await this.companiesRepository.update(id, dto);
 
     await this.outboxService.publish({

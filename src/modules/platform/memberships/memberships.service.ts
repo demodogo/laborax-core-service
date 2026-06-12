@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { OutboxService } from '../outbox/outbox.service';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
@@ -25,7 +25,9 @@ export class MembershipsService {
     return this.membershipsRepository.findOne(id, scope);
   }
 
-  async create(dto: CreateMembershipDto) {
+  async create(user: AuthUserContext, dto: CreateMembershipDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    this.assertTargetScope(scope, dto.tenantId ?? null, dto.companyId ?? null);
     const membership = await this.membershipsRepository.create(dto);
 
     await this.outboxService.publish({
@@ -44,7 +46,9 @@ export class MembershipsService {
     return this.membershipsRepository.listRoles(id);
   }
 
-  async assignRole(id: string, dto: AssignRoleDto) {
+  async assignRole(user: AuthUserContext, id: string, dto: AssignRoleDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.membershipsRepository.findOne(id, scope);
     const assignment = await this.membershipsRepository.assignRole(id, dto);
 
     await this.outboxService.publish({
@@ -61,7 +65,9 @@ export class MembershipsService {
     return assignment;
   }
 
-  async removeRole(id: string, roleId: string) {
+  async removeRole(user: AuthUserContext, id: string, roleId: string) {
+    const scope = await this.accessScopeService.resolve(user);
+    await this.membershipsRepository.findOne(id, scope);
     const result = await this.membershipsRepository.removeRole(id, roleId);
 
     await this.outboxService.publish({
@@ -82,5 +88,25 @@ export class MembershipsService {
     const scope = await this.accessScopeService.resolve(user);
     await this.membershipsRepository.findOne(id, scope);
     return this.membershipsRepository.getEffectivePermissions(id);
+  }
+
+  private assertTargetScope(
+    scope: Awaited<ReturnType<AccessScopeService['resolve']>>,
+    tenantId: string | null,
+    companyId: string | null,
+  ) {
+    if (scope.isGlobal) {
+      return;
+    }
+
+    if (companyId && scope.companyIds.includes(companyId)) {
+      return;
+    }
+
+    if (tenantId && this.accessScopeService.canAccessTenant(scope, tenantId)) {
+      return;
+    }
+
+    throw new NotFoundException('Membership target is outside of effective scope');
   }
 }

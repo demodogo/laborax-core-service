@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { NotFoundException, Injectable } from '@nestjs/common';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
 import { OutboxService } from '../outbox/outbox.service';
@@ -25,7 +25,12 @@ export class CustomerContractsService {
     return this.customerContractsRepository.findOne(id, scope);
   }
 
-  async create(dto: CreateCustomerContractDto) {
+  async create(user: AuthUserContext, dto: CreateCustomerContractDto) {
+    const scope = await this.accessScopeService.resolve(user);
+    if (!this.accessScopeService.canAccessTenant(scope, dto.tenantId)) {
+      throw new NotFoundException('Customer contract tenant is outside of effective scope');
+    }
+
     const contract = await this.customerContractsRepository.create(dto);
 
     await this.outboxService.publish({
@@ -38,7 +43,8 @@ export class CustomerContractsService {
     return contract;
   }
 
-  async update(id: string, dto: UpdateCustomerContractDto) {
+  async update(user: AuthUserContext, id: string, dto: UpdateCustomerContractDto) {
+    await this.findOne(user, id);
     const contract = await this.customerContractsRepository.update(id, dto);
 
     await this.outboxService.publish({

@@ -16,14 +16,23 @@ import { AssignRolePermissionDto } from '../dto/assign-role-permission.dto';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { GetRolesQueryDto } from '../dto/get-roles-query.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
+import type { EffectiveAccessScope } from '../../auth/services/access-scope.service';
 
 @Injectable()
 export class RolesRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async findAll(query: GetRolesQueryDto) {
+  async findAll(query: GetRolesQueryDto, scope?: EffectiveAccessScope) {
     const db = this.getDb();
     const filters: SQL[] = [];
+
+    if (scope && !scope.isGlobal) {
+      const scopeFilter = this.buildScopeFilter(scope);
+      if (!scopeFilter) {
+        return [];
+      }
+      filters.push(scopeFilter);
+    }
 
     if (query.search) {
       const searchFilter = or(
@@ -47,9 +56,19 @@ export class RolesRepository {
     return db.select().from(roles).where(filters.length ? and(...filters) : undefined);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, scope?: EffectiveAccessScope) {
     const db = this.getDb();
-    const [role] = await db.select().from(roles).where(eq(roles.id, id)).limit(1);
+    const filters: SQL[] = [eq(roles.id, id)];
+
+    if (scope && !scope.isGlobal) {
+      const scopeFilter = this.buildScopeFilter(scope);
+      if (!scopeFilter) {
+        throw new NotFoundException('Role not found');
+      }
+      filters.push(scopeFilter);
+    }
+
+    const [role] = await db.select().from(roles).where(and(...filters)).limit(1);
 
     if (!role) {
       throw new NotFoundException('Role not found');
@@ -188,5 +207,13 @@ export class RolesRepository {
     }
 
     return this.databaseService.db;
+  }
+
+  private buildScopeFilter(scope: EffectiveAccessScope) {
+    if (scope.tenantIds.length) {
+      return inArray(roles.tenantId, scope.tenantIds);
+    }
+
+    return undefined;
   }
 }

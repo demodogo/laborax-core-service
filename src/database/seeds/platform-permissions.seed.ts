@@ -60,6 +60,11 @@ const platformPermissions = [
   ['access_control.devices.read', 'Ver dispositivos de control de acceso', 'ACCESS_CONTROL'],
   ['access_control.devices.create', 'Crear dispositivos de control de acceso', 'ACCESS_CONTROL'],
   ['access_control.devices.update', 'Actualizar dispositivos de control de acceso', 'ACCESS_CONTROL'],
+  ['access_control.overrides.read', 'Ver overrides manuales de acceso', 'ACCESS_CONTROL'],
+  ['access_control.overrides.create', 'Crear overrides manuales de acceso', 'ACCESS_CONTROL'],
+  ['access_control.overrides.update', 'Actualizar overrides manuales de acceso', 'ACCESS_CONTROL'],
+  ['access_control.decisions.read', 'Ver decisiones de acceso', 'ACCESS_CONTROL'],
+  ['access_control.decisions.create', 'Evaluar y registrar decisiones de acceso', 'ACCESS_CONTROL'],
   ['access_control.events.read', 'Ver eventos de acceso', 'ACCESS_CONTROL'],
   ['access_control.events.create', 'Registrar eventos de acceso', 'ACCESS_CONTROL'],
 ] as const;

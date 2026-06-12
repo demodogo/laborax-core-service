@@ -45,8 +45,8 @@ export class MembershipsController {
   @RequirePermissions('platform.memberships.create')
   @ApiOperation({ summary: 'Crea un membership' })
   @AuditAction({ action: 'platform.memberships.create', resourceType: 'membership' })
-  create(@Body() dto: CreateMembershipDto) {
-    return this.membershipsService.create(dto);
+  create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateMembershipDto) {
+    return this.membershipsService.create(user, dto);
   }
 
   @Get(':id/roles')
@@ -64,8 +64,12 @@ export class MembershipsController {
     resourceType: 'membership',
     resourceIdParam: 'id',
   })
-  assignRole(@Param('id') id: string, @Body() dto: AssignRoleDto) {
-    return this.membershipsService.assignRole(id, dto);
+  assignRole(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Body() dto: AssignRoleDto,
+  ) {
+    return this.membershipsService.assignRole(user, id, dto);
   }
 
   @Delete(':id/roles/:roleId')
@@ -76,8 +80,12 @@ export class MembershipsController {
     resourceType: 'membership',
     resourceIdParam: 'id',
   })
-  removeRole(@Param('id') id: string, @Param('roleId') roleId: string) {
-    return this.membershipsService.removeRole(id, roleId);
+  removeRole(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Param('roleId') roleId: string,
+  ) {
+    return this.membershipsService.removeRole(user, id, roleId);
   }
 
   @Get(':id/permissions/effective')

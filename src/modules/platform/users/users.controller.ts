@@ -44,16 +44,20 @@ export class UsersController {
   @RequirePermissions('platform.users.create')
   @ApiOperation({ summary: 'Crea un usuario' })
   @AuditAction({ action: 'platform.users.create', resourceType: 'user' })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateUserDto) {
+    return this.usersService.create(user, dto);
   }
 
   @Patch(':id')
   @RequirePermissions('platform.users.update')
   @ApiOperation({ summary: 'Actualiza un usuario' })
   @AuditAction({ action: 'platform.users.update', resourceType: 'user', resourceIdParam: 'id' })
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
+  update(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.update(user, id, dto);
   }
 
   @Patch(':id/credentials')
@@ -65,9 +69,10 @@ export class UsersController {
     resourceIdParam: 'id',
   })
   updateCredentials(
+    @CurrentUser() user: AuthUserContext,
     @Param('id') id: string,
     @Body() dto: UpdateUserCredentialsDto,
   ) {
-    return this.usersService.updateCredentials(id, dto);
+    return this.usersService.updateCredentials(user, id, dto);
   }
 }

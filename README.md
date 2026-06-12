@@ -1,33 +1,33 @@
 # core-service
 
-Canonical platform service for Laborax.
+Servicio canónico de plataforma de Laborax.
 
-## Responsibilities
+## Responsabilidades
 
-`core-service` owns:
+`core-service` es dueño de:
 
-- human authentication
-- service-to-service authentication
-- roles and permissions
-- effective scope resolution
+- autenticación humana
+- autenticación servicio a servicio
+- roles y permisos
+- resolución de alcance efectivo
 - tenants
 - companies
 - customer contracts
-- users and memberships
-- platform audit
-- platform outbox publication
+- users y memberships
+- auditoría de plataforma
+- publicación del outbox de plataforma
 
-## Runtime model
+## Modelo de runtime
 
-This repository exposes two entrypoints:
+Este repositorio expone dos entrypoints:
 
 - `api`
 - `jobs`
 
-The API process handles HTTP traffic and writes outbox records.
-The jobs process publishes pending outbox events and runs background operations.
+El proceso API maneja tráfico HTTP y escribe registros en outbox.
+El proceso jobs publica eventos pendientes y ejecuta procesos de fondo.
 
-## Commands
+## Comandos
 
 ```bash
 npm run build
@@ -36,7 +36,7 @@ npm run start:jobs
 npm run start:all:dev
 ```
 
-## Main API areas
+## Áreas principales de API
 
 - `auth`
 - `internal-customers`
@@ -51,9 +51,9 @@ npm run start:all:dev
 - `outbox/internal`
 - `health`
 
-## Internal integration surfaces
+## Superficies internas de integración
 
-Protected internal endpoints used by downstream services:
+Endpoints internos protegidos usados por servicios downstream:
 
 - `POST /auth/internal/introspect`
 - `GET /tenants/internal-reference/:id`
@@ -61,7 +61,7 @@ Protected internal endpoints used by downstream services:
 - `GET /companies/internal-reference/:id`
 - `GET /companies/internal-reference`
 
-## Important environment variables
+## Variables de entorno importantes
 
 - `DATABASE_URL`
 - `PORT`
@@ -72,9 +72,10 @@ Protected internal endpoints used by downstream services:
 - `RABBITMQ_URL`
 - `RABBITMQ_EXCHANGE`
 
-Service-client seeds used by downstream services are also configured here.
+Los seeds de `service clients` usados por servicios downstream también se
+configuran aquí.
 
-## Local documentation
+## Documentación local
 
 - [docs/README.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/README.md)
 - [docs/temporal-conventions.md](C:/Users/demodogo/Documents/LaboraxV2/services/core-service/docs/temporal-conventions.md)
@@ -82,6 +83,6 @@ Service-client seeds used by downstream services are also configured here.
 
 ## Swagger
 
-When `SWAGGER_ENABLED=true`:
+Con `SWAGGER_ENABLED=true`:
 
 - `http://localhost:3000/docs`

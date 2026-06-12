@@ -1,44 +1,44 @@
-# Async Runtime and Diagnostics
+# Runtime Async y Diagnóstico
 
-## Processes
+## Procesos
 
 ### API
 
-Responsibilities:
+Responsabilidades:
 
-- receive requests
-- validate auth and scope
-- persist domain changes
-- write outbox rows
+- recibir requests
+- validar auth y alcance
+- persistir cambios de dominio
+- escribir filas en outbox
 
 ### Jobs
 
-Responsibilities:
+Responsabilidades:
 
-- publish pending outbox events
-- retry failed publications
-- recover stuck processing rows
+- publicar eventos pendientes del outbox
+- reintentar publicaciones fallidas
+- recuperar filas estancadas en processing
 
-## Startup checks
+## Chequeos al arranque
 
-At boot, the service should make visible:
+Al boot, el servicio debería hacer visible:
 
-- database connectivity
-- RabbitMQ connectivity when publisher is enabled
-- outbox publisher enabled or disabled
+- conectividad a base de datos
+- conectividad a RabbitMQ cuando el publisher esté habilitado
+- publisher de outbox habilitado o deshabilitado
 
-## Diagnostic sequence
+## Secuencia de diagnóstico
 
-When an integration issue is reported:
+Ante un problema de integración:
 
-1. verify the business row exists in source tables
-2. verify the outbox row exists
-3. verify the outbox status
-4. verify the jobs process is running
-5. verify RabbitMQ exchange/bindings
-6. verify downstream consumer behavior
+1. verificar que la fila de negocio exista en tablas fuente
+2. verificar que la fila de outbox exista
+3. verificar el estado de la fila de outbox
+4. verificar que el proceso jobs esté corriendo
+5. verificar exchange y bindings en RabbitMQ
+6. verificar comportamiento del consumer downstream
 
-## Internal operational endpoints
+## Endpoints operacionales internos
 
 - `GET /outbox/internal/events`
 - `GET /outbox/internal/stats`

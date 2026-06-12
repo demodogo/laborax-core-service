@@ -60,8 +60,8 @@ export class CompaniesController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('platform.companies.create')
   @AuditAction({ action: 'platform.companies.create', resourceType: 'company' })
-  create(@Body() dto: CreateCompanyDto) {
-    return this.companiesService.create(dto);
+  create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateCompanyDto) {
+    return this.companiesService.create(user, dto);
   }
 
   @Patch(':id')
@@ -72,7 +72,11 @@ export class CompaniesController {
     resourceType: 'company',
     resourceIdParam: 'id',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateCompanyDto) {
-    return this.companiesService.update(id, dto);
+  update(
+    @CurrentUser() user: AuthUserContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateCompanyDto,
+  ) {
+    return this.companiesService.update(user, id, dto);
   }
 }
