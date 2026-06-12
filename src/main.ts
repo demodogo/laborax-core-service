@@ -5,12 +5,16 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { correlationIdMiddleware } from './common/observability/correlation-id.middleware';
+import { RequestLoggingInterceptor } from './common/observability/request-logging.interceptor';
+import { HttpExceptionEnvelopeFilter } from './common/observability/http-exception-envelope.filter';
 
 async function bootstrap() {
   const env = resolveEnv(process.env);
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
   app.use(correlationIdMiddleware);
+  app.useGlobalInterceptors(new RequestLoggingInterceptor());
+  app.useGlobalFilters(new HttpExceptionEnvelopeFilter());
   app.use(helmet());
   app.enableCors({
     origin: env.corsAllowedOrigins.length ? env.corsAllowedOrigins : false,
