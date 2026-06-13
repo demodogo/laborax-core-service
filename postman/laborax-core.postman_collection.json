@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7df07264-80b7-4e4f-9b17-2fcb6a7afed0",
     "name": "Laborax Core Service",
-    "description": "Coleccion operativa para core-service. Incluye auth, RBAC, tenants, companies, internal-customers, outbox, service clients y health checks.",
+    "description": "Coleccion operativa para core-service. Incluye auth, RBAC, tenants, companies, internal-customers, outbox, service clients y health checks. Esta es la entrada real para el onboarding organizacional que luego sincroniza hacia workforce-service, access-control-service y bff-service.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
