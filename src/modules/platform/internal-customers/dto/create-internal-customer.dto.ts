@@ -1,6 +1,8 @@
 import {
+  ArrayUnique,
   IsDateString,
   IsEmail,
+  IsEnum,
   IsOptional,
   IsString,
   MaxLength,
@@ -8,6 +10,8 @@ import {
 } from 'class-validator';
 import { IsChileanRut } from '../../../../common/validators/is-chilean-rut.validator';
 import { IsSlug } from '../../../../common/validators/is-slug.validator';
+
+const customerProductCodes = ['SCC', 'SCA', 'CERTIFICAX'] as const;
 
 export class CreateInternalCustomerDto {
   @IsString()
@@ -53,6 +57,11 @@ export class CreateInternalCustomerDto {
   @IsOptional()
   @IsString()
   contractNotes?: string;
+
+  @IsOptional()
+  @ArrayUnique()
+  @IsEnum(customerProductCodes, { each: true })
+  productCodes?: (typeof customerProductCodes)[number][];
 
   @IsEmail()
   adminEmail!: string;

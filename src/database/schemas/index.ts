@@ -4,6 +4,7 @@ export * from './common';
 export * from './platform/audit-logs.schema';
 export * from './platform/companies.schema';
 export * from './platform/customer-contracts.schema';
+export * from './platform/customer-contract-products.schema';
 export * from './platform/membership-roles.schema';
 export * from './platform/memberships.schema';
 export * from './platform/outbox-events.schema';

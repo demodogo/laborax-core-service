@@ -11,6 +11,7 @@ import {
   companies,
   membershipRoles,
   memberships,
+  outboxEvents,
   permissions,
   rolePermissions,
   roles,
@@ -18,6 +19,7 @@ import {
   users,
 } from '../../../../database/schemas';
 import { CreateUserDto } from '../dto/create-user.dto';
+import { CreateInternalUserDto } from '../dto/create-internal-user.dto';
 import { GetUsersQueryDto } from '../dto/get-users-query.dto';
 import { UpdateUserCredentialsDto } from '../dto/update-user-credentials.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -181,6 +183,110 @@ export class UsersRepository {
       });
 
     return user;
+  }
+
+  async createInternalUser(
+    dto: CreateInternalUserDto & { type: 'INTERNAL' },
+    passwordHash: string,
+  ) {
+    const db = this.getDb();
+    const email = dto.email.toLowerCase();
+
+    const [existingUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingUser) {
+      throw new ConflictException('User email already exists');
+    }
+
+    const [role] = await db.select().from(roles).where(eq(roles.id, dto.roleId)).limit(1);
+
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    if (role.scope !== 'GLOBAL') {
+      throw new ConflictException('Internal onboarding requires a global role');
+    }
+
+    return db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          id: randomUUID(),
+          type: 'INTERNAL',
+          email,
+          passwordHash,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          status: dto.status,
+          isEmailVerified: true,
+        })
+        .returning({
+          id: users.id,
+          type: users.type,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          isEmailVerified: users.isEmailVerified,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        });
+
+      const [membership] = await tx
+        .insert(memberships)
+        .values({
+          id: randomUUID(),
+          userId: user.id,
+          scope: 'GLOBAL',
+          status: 'ACTIVE',
+        })
+        .returning();
+
+      await tx.insert(membershipRoles).values({
+        membershipId: membership.id,
+        roleId: role.id,
+      });
+
+      await tx.insert(outboxEvents).values([
+        {
+          aggregateType: 'user',
+          aggregateId: user.id,
+          eventType: 'user.created',
+          payload: user,
+        },
+        {
+          aggregateType: 'membership',
+          aggregateId: membership.id,
+          eventType: 'membership.created',
+          payload: membership,
+        },
+        {
+          aggregateType: 'membership',
+          aggregateId: membership.id,
+          eventType: 'membership.role_assigned',
+          payload: {
+            membershipId: membership.id,
+            roleId: role.id,
+          },
+        },
+      ]);
+
+      return {
+        user,
+        membership,
+        role: {
+          id: role.id,
+          slug: role.slug,
+          displayName: role.displayName,
+          scope: role.scope,
+        },
+      };
+    });
   }
 
   async update(id: string, dto: UpdateUserDto) {

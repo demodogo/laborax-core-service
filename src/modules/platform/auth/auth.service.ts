@@ -333,13 +333,12 @@ export class AuthService {
   }
 
   async meContext(user: AuthUserContext) {
-    await this.me(user);
-    const [context, accessScope] = await Promise.all([
-      this.authRepository.getUserContext(user.sub),
-      this.accessScopeService.resolve(user),
-    ]);
+    const currentUser = await this.me(user);
+    const accessScope = await this.accessScopeService.resolve(user);
+    const context = await this.authRepository.getUserContext(user.sub, accessScope);
 
     return {
+      user: currentUser,
       ...context,
       accessScope,
     };
@@ -362,10 +361,8 @@ export class AuthService {
       throw new UnauthorizedException('User not active');
     }
 
-    const [context, accessScope] = await Promise.all([
-      this.authRepository.getUserContext(user.id),
-      this.accessScopeService.resolve(payload),
-    ]);
+    const accessScope = await this.accessScopeService.resolve(payload);
+    const context = await this.authRepository.getUserContext(user.id, accessScope);
 
     return {
       active: true,

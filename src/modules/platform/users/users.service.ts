@@ -3,6 +3,7 @@ import { OutboxService } from '../outbox/outbox.service';
 import { AccessScopeService } from '../auth/services/access-scope.service';
 import type { AuthUserContext } from '../auth/types/auth-user-context.type';
 import { PasswordService } from '../auth/services/password.service';
+import { CreateInternalUserDto } from './dto/create-internal-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { UpdateUserCredentialsDto } from './dto/update-user-credentials.dto';
@@ -45,6 +46,22 @@ export class UsersService {
     });
 
     return user;
+  }
+
+  async createInternalUser(currentUser: AuthUserContext, dto: CreateInternalUserDto) {
+    const scope = await this.accessScopeService.resolve(currentUser);
+    if (!scope.isGlobal) {
+      throw new ForbiddenException('Internal user creation requires global scope');
+    }
+
+    const passwordHash = await this.passwordService.hash(dto.password);
+    return this.usersRepository.createInternalUser(
+      {
+        ...dto,
+        type: 'INTERNAL',
+      },
+      passwordHash,
+    );
   }
 
   async update(currentUser: AuthUserContext, id: string, dto: UpdateUserDto) {

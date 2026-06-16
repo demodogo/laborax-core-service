@@ -6,6 +6,7 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateInternalUserDto } from './dto/create-internal-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { UpdateUserCredentialsDto } from './dto/update-user-credentials.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -46,6 +47,14 @@ export class UsersController {
   @AuditAction({ action: 'platform.users.create', resourceType: 'user' })
   create(@CurrentUser() user: AuthUserContext, @Body() dto: CreateUserDto) {
     return this.usersService.create(user, dto);
+  }
+
+  @Post('internal-onboarding')
+  @RequirePermissions('platform.users.create')
+  @ApiOperation({ summary: 'Crea un usuario interno con membership global y rol inicial' })
+  @AuditAction({ action: 'platform.users.create', resourceType: 'user' })
+  createInternalUser(@CurrentUser() user: AuthUserContext, @Body() dto: CreateInternalUserDto) {
+    return this.usersService.createInternalUser(user, dto);
   }
 
   @Patch(':id')

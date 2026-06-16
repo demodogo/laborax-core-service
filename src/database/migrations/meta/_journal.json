@@ -43,6 +43,13 @@
       "when": 1780550983035,
       "tag": "0005_rework-company-types",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789382400000,
+      "tag": "0006_init-customer-contract-products",
+      "breakpoints": true
     }
   ]
 }

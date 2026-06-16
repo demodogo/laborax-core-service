@@ -7,10 +7,12 @@ import {
 import { and, eq, or } from 'drizzle-orm';
 import {
   companies,
+  customerContractProducts,
   customerContracts,
   membershipRoles,
   memberships,
   outboxEvents,
+  products,
   roles,
   tenants,
   users,
@@ -121,6 +123,12 @@ export class InternalCustomersRepository {
         })
         .returning();
 
+      const contractProducts = await this.assignContractProducts(
+        tx,
+        contract.id,
+        dto.productCodes ?? [],
+      );
+
       const [adminUser] = await tx
         .insert(users)
         .values({
@@ -168,7 +176,13 @@ export class InternalCustomersRepository {
           aggregateType: 'customer_contract',
           aggregateId: contract.id,
           eventType: 'customer_contract.created',
-          payload: contract,
+          payload: {
+            ...contract,
+            products: contractProducts,
+            enabledProductCodes: contractProducts
+              .filter((item) => item.status === 'ACTIVE')
+              .map((item) => item.code),
+          },
         },
         {
           aggregateType: 'user',
@@ -203,7 +217,13 @@ export class InternalCustomersRepository {
       return {
         tenant,
         ownerCompany: normalizedCompany,
-        contract,
+        contract: {
+          ...contract,
+          products: contractProducts,
+          enabledProductCodes: contractProducts
+            .filter((item) => item.status === 'ACTIVE')
+            .map((item) => item.code),
+        },
         adminUser: {
           id: adminUser.id,
           email: adminUser.email,
@@ -227,6 +247,50 @@ export class InternalCustomersRepository {
         'Contract endDate must be greater than or equal to startDate',
       );
     }
+  }
+
+  private async assignContractProducts(
+    tx: ReturnType<typeof this.getDb>,
+    customerContractId: string,
+    productCodes: Array<'SCC' | 'SCA' | 'CERTIFICAX'>,
+  ) {
+    if (!productCodes.length) {
+      return [];
+    }
+
+    const catalog = await tx
+      .select({
+        id: products.id,
+        code: products.code,
+        name: products.name,
+        description: products.description,
+      })
+      .from(products)
+      .where(eq(products.status, 'ACTIVE'));
+
+    const catalogByCode = new Map(catalog.map((item) => [item.code, item]));
+    const resolvedProducts = productCodes.map((code) => catalogByCode.get(code));
+
+    if (resolvedProducts.some((item) => !item)) {
+      throw new BadRequestException('One or more product codes are invalid');
+    }
+
+    await tx.insert(customerContractProducts).values(
+      resolvedProducts.map((item) => ({
+        customerContractId,
+        productId: item!.id,
+        status: 'ACTIVE' as const,
+      })),
+    );
+
+    return resolvedProducts.map((item) => ({
+      code: item!.code,
+      name: item!.name,
+      description: item!.description,
+      status: 'ACTIVE' as const,
+      startsAt: null,
+      endsAt: null,
+    }));
   }
 
   private getDb() {

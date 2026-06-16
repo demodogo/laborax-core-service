@@ -1,15 +1,15 @@
-import {
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { and, asc, desc, eq, gt, isNull, ne, or } from 'drizzle-orm';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { and, asc, desc, eq, gt, inArray, isNull, ne, or } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { DatabaseService } from '../../database/database.service';
 import {
   companies,
+  customerContractProducts,
+  customerContracts,
   membershipRoles,
   memberships,
   permissions,
+  products,
   rolePermissions,
   roles,
   serviceClients,
@@ -80,12 +80,7 @@ export class AuthRepository {
 
   async findSessionById(sessionId: string) {
     const db = this.getDb();
-    const [session] = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.id, sessionId))
-      .limit(1);
-
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
     return session ?? null;
   }
 
@@ -106,12 +101,7 @@ export class AuthRepository {
 
   async touchSessionLastUsedAt(sessionId: string) {
     const db = this.getDb();
-    await db
-      .update(sessions)
-      .set({
-        lastUsedAt: new Date(),
-      })
-      .where(eq(sessions.id, sessionId));
+    await db.update(sessions).set({ lastUsedAt: new Date() }).where(eq(sessions.id, sessionId));
   }
 
   async markSessionRefreshReuseDetected(sessionId: string) {
@@ -222,10 +212,7 @@ export class AuthRepository {
 
   async touchServiceClientLastUsedAt(id: string) {
     const db = this.getDb();
-    await db
-      .update(serviceClients)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(serviceClients.id, id));
+    await db.update(serviceClients).set({ lastUsedAt: new Date() }).where(eq(serviceClients.id, id));
   }
 
   async touchServiceClientSecretLastUsedAt(id: string) {
@@ -250,7 +237,7 @@ export class AuthRepository {
     return Array.from(new Set(rows.map((row) => row.slug)));
   }
 
-  async getUserContext(userId: string) {
+  async getUserContext(userId: string, accessScope?: { isGlobal: boolean; tenantIds: string[] }) {
     const db = this.getDb();
     const rows = await db
       .select({
@@ -296,9 +283,7 @@ export class AuthRepository {
           scope: row.membershipScope,
           status: row.membershipStatus,
           tenant:
-            row.tenantId && row.tenantName
-              ? { id: row.tenantId, name: row.tenantName }
-              : null,
+            row.tenantId && row.tenantName ? { id: row.tenantId, name: row.tenantName } : null,
           company:
             row.companyId && row.companyLegalName
               ? { id: row.companyId, legalName: row.companyLegalName }
@@ -323,9 +308,7 @@ export class AuthRepository {
       }
 
       if (row.permissionId && row.permissionSlug) {
-        const exists = membership.permissions.some(
-          (permission) => permission.id === row.permissionId,
-        );
+        const exists = membership.permissions.some((permission) => permission.id === row.permissionId);
         if (!exists) {
           membership.permissions.push({
             id: row.permissionId,
@@ -335,20 +318,148 @@ export class AuthRepository {
       }
     }
 
+    const productContext = await this.tryGetEnabledProductsForScope(accessScope);
+
     return {
       userId,
       permissions: await this.getEffectivePermissionSlugsForUser(userId),
       memberships: Array.from(membershipsById.values()),
+      ...productContext,
     };
+  }
+
+  async getEnabledProductsForScope(accessScope?: { isGlobal: boolean; tenantIds: string[] }) {
+    const db = this.getDb();
+    const today = new Date().toISOString().slice(0, 10);
+    const filters = [
+      eq(customerContracts.status, 'ACTIVE'),
+      eq(customerContractProducts.status, 'ACTIVE'),
+      eq(products.status, 'ACTIVE'),
+    ];
+
+    if (accessScope && !accessScope.isGlobal) {
+      if (!accessScope.tenantIds.length) {
+        return {
+          enabledProducts: [],
+          tenantProducts: [],
+        };
+      }
+
+      filters.push(inArray(customerContracts.tenantId, accessScope.tenantIds));
+    }
+
+    const rows = await db
+      .select({
+        tenantId: customerContracts.tenantId,
+        productCode: products.code,
+        productName: products.name,
+        productDescription: products.description,
+        productStatus: customerContractProducts.status,
+        startsAt: customerContractProducts.startsAt,
+        endsAt: customerContractProducts.endsAt,
+      })
+      .from(customerContracts)
+      .innerJoin(
+        customerContractProducts,
+        eq(customerContractProducts.customerContractId, customerContracts.id),
+      )
+      .innerJoin(products, eq(products.id, customerContractProducts.productId))
+      .where(and(...filters));
+
+    const tenantProductsMap = new Map<
+      string,
+      Array<{
+        code: string;
+        name: string;
+        description: string | null;
+        status: string;
+        startsAt: string | null;
+        endsAt: string | null;
+        enabled: boolean;
+      }>
+    >();
+    const enabledProductsMap = new Map<
+      string,
+      {
+        code: string;
+        name: string;
+        description: string | null;
+      }
+    >();
+
+    for (const row of rows) {
+      const enabled =
+        row.productStatus === 'ACTIVE' &&
+        (!row.startsAt || row.startsAt <= today) &&
+        (!row.endsAt || row.endsAt >= today);
+
+      const tenantProducts = tenantProductsMap.get(row.tenantId) ?? [];
+      tenantProducts.push({
+        code: row.productCode,
+        name: row.productName,
+        description: row.productDescription,
+        status: row.productStatus,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        enabled,
+      });
+      tenantProductsMap.set(row.tenantId, tenantProducts);
+
+      if (enabled && !enabledProductsMap.has(row.productCode)) {
+        enabledProductsMap.set(row.productCode, {
+          code: row.productCode,
+          name: row.productName,
+          description: row.productDescription,
+        });
+      }
+    }
+
+    return {
+      enabledProducts: Array.from(enabledProductsMap.values()),
+      tenantProducts: Array.from(tenantProductsMap.entries()).map(([tenantId, tenantProducts]) => ({
+        tenantId,
+        products: tenantProducts,
+      })),
+    };
+  }
+
+  private async tryGetEnabledProductsForScope(accessScope?: {
+    isGlobal: boolean;
+    tenantIds: string[];
+  }) {
+    try {
+      return await this.getEnabledProductsForScope(accessScope);
+    } catch (error) {
+      if (this.isMissingProductProjectionSchemaError(error)) {
+        return {
+          enabledProducts: [],
+          tenantProducts: [],
+        };
+      }
+
+      throw error;
+    }
   }
 
   private getDb() {
     if (!this.databaseService.db) {
-      throw new ServiceUnavailableException(
-        'Database connection is not configured',
-      );
+      throw new ServiceUnavailableException('Database connection is not configured');
     }
 
     return this.databaseService.db;
+  }
+
+  private isMissingProductProjectionSchemaError(error: unknown) {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const message = error.message.toLowerCase();
+
+    return (
+      message.includes('customer_contract_products') ||
+      message.includes('platform.products') ||
+      message.includes('relation') && message.includes('does not exist')
+    );
   }
 }

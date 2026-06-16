@@ -56,4 +56,8 @@ export class CustomerContractsService {
 
     return contract;
   }
+
+  listProductCatalog() {
+    return this.customerContractsRepository.listProductCatalog();
+  }
 }

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createSeedContext } from './seed-context';
 import { seedPlatformAdmin } from './platform-admin.seed';
 import { seedPlatformPermissions } from './platform-permissions.seed';
+import { seedProducts } from './products.seed';
 import { seedServiceClients } from './service-clients.seed';
 import { seedCustomerRoles } from './customer-roles.seed';
 import { seedInternalWorkforceRoles } from './internal-workforce-roles.seed';
@@ -14,6 +15,7 @@ async function main() {
 
   try {
     await seedPlatformPermissions(context);
+    await seedProducts(context);
     const customerRolesResult = await seedCustomerRoles(context);
     const internalWorkforceRolesResult = await seedInternalWorkforceRoles(context);
     const internalWorkforceContractsRolesResult =
@@ -25,6 +27,7 @@ async function main() {
 
     console.log('Seeds completed', {
       adminResult,
+      productsSeeded: true,
       customerRolesResult,
       internalWorkforceRolesResult,
       internalWorkforceContractsRolesResult,

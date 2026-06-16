@@ -1,6 +1,14 @@
-import { IsDateString, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  ArrayUnique,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 const customerContractStatuses = ['DRAFT', 'ACTIVE', 'EXPIRED', 'TERMINATED'] as const;
+const customerProductCodes = ['SCC', 'SCA', 'CERTIFICAX'] as const;
 
 export class UpdateCustomerContractDto {
   @IsOptional()
@@ -23,4 +31,9 @@ export class UpdateCustomerContractDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @ArrayUnique()
+  @IsEnum(customerProductCodes, { each: true })
+  productCodes?: (typeof customerProductCodes)[number][];
 }

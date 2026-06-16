@@ -25,6 +25,13 @@ export class CustomerContractsController {
     return this.customerContractsService.findAll(user, query);
   }
 
+  @Get('catalog/products')
+  @RequirePermissions('platform.customer_contracts.read')
+  @ApiOperation({ summary: 'Lista el catalogo de productos comerciales disponibles' })
+  listProductCatalog() {
+    return this.customerContractsService.listProductCatalog();
+  }
+
   @Get(':id')
   @RequirePermissions('platform.customer_contracts.read')
   @ApiOperation({ summary: 'Obtiene un contrato visible segun scope efectivo' })
