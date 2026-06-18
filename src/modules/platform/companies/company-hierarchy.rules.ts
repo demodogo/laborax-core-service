@@ -3,7 +3,7 @@ export type CompanyType = 'OWNER' | 'CONTRACTOR' | 'SUBCONTRACTOR' | 'EST';
 const allowedChildTypes: Record<CompanyType, CompanyType[]> = {
   OWNER: ['CONTRACTOR', 'EST'],
   CONTRACTOR: ['SUBCONTRACTOR', 'EST'],
-  SUBCONTRACTOR: [],
+  SUBCONTRACTOR: ['EST'],
   EST: [],
 };
 

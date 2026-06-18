@@ -19,6 +19,12 @@ const internalRoles = [
       'workforce.worker_assignments.create',
       'workforce.vehicle_assignments.read',
       'workforce.vehicle_assignments.create',
+      'accreditation.fulfillments.read',
+      'accreditation.fulfillments.create',
+      'accreditation.fulfillments.update',
+      'accreditation.statuses.read',
+      'access_control.credentials.read',
+      'access_control.credentials.create',
     ],
   },
   {
