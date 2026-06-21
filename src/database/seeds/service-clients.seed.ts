@@ -7,12 +7,16 @@ const serviceClientDefinitions = [
   {
     clientIdEnv: 'SEED_PORTAL_BFF_CLIENT_ID',
     clientSecretEnv: 'SEED_PORTAL_BFF_CLIENT_SECRET',
+    defaultClientId: undefined,
+    defaultClientSecret: undefined,
     name: 'portal-bff',
     allowedScopes: ['auth:introspect', 'platform:read'],
   },
   {
     clientIdEnv: 'SEED_INTERNAL_JOBS_CLIENT_ID',
     clientSecretEnv: 'SEED_INTERNAL_JOBS_CLIENT_SECRET',
+    defaultClientId: 'internal-jobs-local',
+    defaultClientSecret: 'change-me-internal-jobs',
     name: 'internal-jobs',
     allowedScopes: [
       'auth:introspect',
@@ -25,12 +29,16 @@ const serviceClientDefinitions = [
   {
     clientIdEnv: 'SEED_WORKFORCE_SERVICE_CLIENT_ID',
     clientSecretEnv: 'SEED_WORKFORCE_SERVICE_CLIENT_SECRET',
+    defaultClientId: 'workforce-local',
+    defaultClientSecret: 'change-me-workforce-service',
     name: 'workforce-service',
     allowedScopes: ['auth:introspect', 'platform:read'],
   },
   {
     clientIdEnv: 'SEED_ACCESS_CONTROL_CLIENT_ID',
     clientSecretEnv: 'SEED_ACCESS_CONTROL_CLIENT_SECRET',
+    defaultClientId: 'access-control-local',
+    defaultClientSecret: 'change-me-access-control',
     name: 'access-control-service',
     allowedScopes: [
       'auth:introspect',
@@ -47,8 +55,10 @@ export async function seedServiceClients({ db }: SeedContext) {
   }> = [];
 
   for (const definition of serviceClientDefinitions) {
-    const clientId = process.env[definition.clientIdEnv];
-    const clientSecret = process.env[definition.clientSecretEnv];
+    const clientId =
+      process.env[definition.clientIdEnv] ?? definition.defaultClientId;
+    const clientSecret =
+      process.env[definition.clientSecretEnv] ?? definition.defaultClientSecret;
 
     if (!clientId || !clientSecret) {
       continue;
